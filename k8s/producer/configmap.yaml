@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: baggage-producer-config
+  namespace: baggage-poc
+  labels:
+    app: baggage-producer
+    component: config
+
+data:
+  PRODUCER_AIRPORT: "LHR"
+  PRODUCER_DAY_OFFSET: "0"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.baggage-poc.svc.cluster.local:9092"

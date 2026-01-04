@@ -1,0 +1,66 @@
+image:
+  registry: docker.io
+  repository: bitnami/kafka
+  tag: 3.6
+
+kraft:
+  enabled: true
+  clusterId: "baggage-poc"
+
+replicaCount: 1
+listeners:
+  client:
+    protocol: PLAINTEXT
+  controller:
+    protocol: PLAINTEXT
+  interbroker:
+    protocol: PLAINTEXT
+zookeeper:
+  enabled: false
+
+configurationOverrides:
+  auto.create.topics.enable: "false"
+  offsets.topic.replication.factor: 1
+  transaction.state.log.replication.factor: 1
+  transaction.state.log.min.isr: 1
+  min.insync.replicas: 1
+
+provisioning:
+  enabled: true
+  topics:
+    - name: flight.schedule.v1
+      partitions: 3
+      replicationFactor: 1
+      config:
+        cleanup.policy: compact
+    - name: baggage.assignment.v1
+      partitions: 6
+      replicationFactor: 1
+      config:
+        cleanup.policy: compact
+    - name: baggage.events.v1
+      partitions: 12
+      replicationFactor: 1
+      config:
+        retention.ms: 604800000
+    - name: baggage.bag.latest.v1
+      partitions: 6
+      replicationFactor: 1
+      config:
+        cleanup.policy: compact
+    - name: baggage.alerts.v1
+      partitions: 6
+      replicationFactor: 1
+      config:
+        retention.ms: 604800000
+    - name: baggage.notifications.v1
+      partitions: 6
+      replicationFactor: 1
+      config:
+        retention.ms: 604800000
+
+persistence:
+  enabled: false
+
+service:
+  type: ClusterIP

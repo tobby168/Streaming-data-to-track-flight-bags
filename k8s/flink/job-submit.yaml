@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-job-submit
+  namespace: baggage-poc
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: submitter
+          image: flink:1.18
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              echo "Submitting Flink jobs";
+              flink run -m flink-jobmanager:8081 /opt/flink/jobs/bag-latest-job.jar --kafka.bootstrap.servers=kafka.baggage-poc.svc.cluster.local:9092;
+              flink run -m flink-jobmanager:8081 /opt/flink/jobs/flight-kpi-alert-job.jar --kafka.bootstrap.servers=kafka.baggage-poc.svc.cluster.local:9092;
+              flink run -m flink-jobmanager:8081 /opt/flink/jobs/itinerary-status-job.jar --kafka.bootstrap.servers=kafka.baggage-poc.svc.cluster.local:9092;

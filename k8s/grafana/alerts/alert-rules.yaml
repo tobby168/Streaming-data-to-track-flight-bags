@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alert-rules
+  namespace: baggage-poc
+  labels:
+    grafana_alert: "1"
+    app.kubernetes.io/name: grafana
+
+data:
+  alert-rules.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: baggage-alerts
+        interval: 1m
+        rules:
+          - uid: critical_alerts_present
+            title: CRITICAL alerts exist
+            condition: A
+            data:
+              - refId: A
+                datasourceUid: ClickHouse
+                model:
+                  query: "SELECT count() FROM baggage.alerts WHERE severity='CRITICAL' AND created_at > now() - INTERVAL 2 MINUTE"
+            annotations:
+              summary: "Critical baggage alerts detected"
+          - uid: warn_alerts_present
+            title: WARN alerts exist
+            condition: A
+            data:
+              - refId: A
+                datasourceUid: ClickHouse
+                model:
+                  query: "SELECT count() FROM baggage.alerts WHERE severity='WARN' AND created_at > now() - INTERVAL 2 MINUTE"
+            annotations:
+              summary: "Warn baggage alerts detected"
+          - uid: pipeline_freshness
+            title: Pipeline freshness degraded
+            condition: A
+            data:
+              - refId: A
+                datasourceUid: ClickHouse
+                model:
+                  query: "SELECT max(freshness_sec) FROM baggage.flight_kpis WHERE updated_at > now() - INTERVAL 2 MINUTE"
+            annotations:
+              summary: "Flight KPIs freshness exceeded threshold"

@@ -1,0 +1,29 @@
+{
+  "title": "Itinerary Status",
+  "panels": [
+    {
+      "type": "table",
+      "title": "Itineraries At Risk",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT itinerary_id, journey_state, risk_reason, latest_event_time FROM baggage.itinerary_status WHERE journey_state IN ('AT_RISK_FOR_CONNECTION','DELAYED_OR_REROUTED','EXCEPTION') ORDER BY latest_event_time DESC LIMIT 100"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 10}
+    },
+    {
+      "type": "logs",
+      "title": "Alerts",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT formatDateTime(created_at,'%Y-%m-%d %H:%M:%S') AS time, severity, payload FROM baggage.alerts ORDER BY created_at DESC LIMIT 200"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 10, "w": 24, "h": 10}
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}
