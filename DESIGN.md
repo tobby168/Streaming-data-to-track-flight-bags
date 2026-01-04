@@ -1,11 +1,5 @@
 # Local POC: Baggage Tracking Ops (Kafka + Flink + ClickHouse + Grafana) on Kubernetes
 
-把完整 design doc 放進去
-
-Below is a single, concrete plan (no branching options) you can hand to a coding agent. It assumes Kubernetes deployment and uses Kafka + Flink + ClickHouse + Grafana with a mock data generator pod. Transfer connections are explicitly modeled.
-
-⸻
-
 ## 1) Goal
 
 Build a local, runnable POC that:
