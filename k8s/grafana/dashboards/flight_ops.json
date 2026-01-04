@@ -1,27 +1,51 @@
 {
   "title": "Flight Ops Overview",
+  "uid": "flight-ops-overview",
+  "timezone": "utc",
+  "templating": {
+    "list": [
+      {
+        "name": "flight_id",
+        "type": "query",
+        "datasource": "ClickHouse",
+        "query": "SELECT flight_id FROM baggage.flight_kpis WHERE dep_time BETWEEN now() AND now() + INTERVAL 6 HOUR ORDER BY dep_time LIMIT 50",
+        "refresh": 1
+      }
+    ]
+  },
   "panels": [
     {
       "type": "table",
-      "title": "Flights by Missing Bags",
+      "title": "Flights in Next 6 Hours (by missing bags)",
       "datasource": "ClickHouse",
       "targets": [
         {
-          "query": "SELECT flight_id, loaded_pct, missing_bags, freshness_sec FROM baggage.flight_kpis ORDER BY missing_bags DESC LIMIT 50"
+          "query": "SELECT flight_id, formatDateTime(dep_time,'%Y-%m-%d %H:%M') AS dep_time, loaded_pct, missing_bags, freshness_sec FROM baggage.flight_kpis WHERE dep_time BETWEEN now() AND now() + INTERVAL 6 HOUR ORDER BY missing_bags DESC, loaded_pct ASC LIMIT 100"
         }
       ],
       "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8}
     },
     {
-      "type": "table",
-      "title": "Latest Bag States",
+      "type": "timeseries",
+      "title": "Loaded % Over Time",
       "datasource": "ClickHouse",
       "targets": [
         {
-          "query": "SELECT bag_id, flight_id, airport, event_type, event_time FROM baggage.bag_latest ORDER BY event_time DESC LIMIT 50"
+          "query": "SELECT updated_at AS time, loaded_pct FROM baggage.flight_kpis WHERE flight_id='${flight_id}' ORDER BY updated_at"
         }
       ],
       "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8}
+    },
+    {
+      "type": "bargauge",
+      "title": "Latest Bag Stage Counts",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT event_type, count() AS bags FROM baggage.bag_latest WHERE flight_id='${flight_id}' GROUP BY event_type ORDER BY bags DESC"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8}
     }
   ],
   "schemaVersion": 38,

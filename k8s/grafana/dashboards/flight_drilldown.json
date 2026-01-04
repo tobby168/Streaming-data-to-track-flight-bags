@@ -1,0 +1,42 @@
+{
+  "title": "Flight Drilldown",
+  "uid": "flight-drilldown",
+  "timezone": "utc",
+  "templating": {
+    "list": [
+      {
+        "name": "flight_id",
+        "type": "query",
+        "datasource": "ClickHouse",
+        "query": "SELECT flight_id FROM baggage.flight_kpis WHERE dep_time BETWEEN now() - INTERVAL 1 HOUR AND now() + INTERVAL 6 HOUR ORDER BY dep_time LIMIT 100",
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "table",
+      "title": "Missing Bags for Flight",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT bag_id, itinerary_id, airport, event_type, event_time, leg_index FROM baggage.bag_latest WHERE flight_id='${flight_id}' AND event_type != 'LoadedOnAircraft' ORDER BY event_time DESC LIMIT 200"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 10}
+    },
+    {
+      "type": "table",
+      "title": "Recent Bag Events",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT bag_id, event_type, airport, event_time, ingest_time, reader_type FROM baggage.events WHERE flight_id='${flight_id}' ORDER BY event_time DESC LIMIT 200"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 10, "w": 24, "h": 10}
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}
