@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: baggage-poc
+  labels:
+    grafana_datasource: "1"
+    app.kubernetes.io/name: grafana
+
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: ClickHouse
+        type: grafana-clickhouse-datasource
+        access: proxy
+        url: http://clickhouse:8123
+        database: baggage
+        user: admin
+        secureJsonData:
+          password: admin123
+        isDefault: true

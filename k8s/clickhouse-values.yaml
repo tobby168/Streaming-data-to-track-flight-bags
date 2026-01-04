@@ -1,0 +1,26 @@
+image:
+  registry: docker.io
+  repository: bitnami/clickhouse
+  tag: 23.8.9
+
+persistence:
+  enabled: false
+
+service:
+  type: ClusterIP
+
+auth:
+  username: admin
+  password: admin123
+  database: baggage
+
+shards: 1
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 1
+    memory: 2Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi

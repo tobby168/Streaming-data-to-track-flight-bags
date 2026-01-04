@@ -1,0 +1,22 @@
+adminUser: admin
+adminPassword: admin123
+
+service:
+  type: ClusterIP
+
+persistence:
+  enabled: false
+
+plugins:
+  - grafana-clickhouse-datasource
+
+sidecar:
+  datasources:
+    enabled: true
+    searchNamespace: baggage-poc
+  dashboards:
+    enabled: true
+    searchNamespace: baggage-poc
+  alerts:
+    enabled: true
+    searchNamespace: baggage-poc

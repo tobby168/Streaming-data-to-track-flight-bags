@@ -1,0 +1,29 @@
+{
+  "title": "Flight Ops Overview",
+  "panels": [
+    {
+      "type": "table",
+      "title": "Flights by Missing Bags",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT flight_id, loaded_pct, missing_bags, freshness_sec FROM baggage.flight_kpis ORDER BY missing_bags DESC LIMIT 50"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8}
+    },
+    {
+      "type": "table",
+      "title": "Latest Bag States",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "query": "SELECT bag_id, flight_id, airport, event_type, event_time FROM baggage.bag_latest ORDER BY event_time DESC LIMIT 50"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8}
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}
