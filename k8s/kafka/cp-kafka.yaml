@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: baggage-poc
+  labels:
+    app: kafka
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: plaintext
+      port: 9092
+      targetPort: 9092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: baggage-poc
+  labels:
+    app: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: kafka
+          image: confluentinc/cp-kafka:7.6.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9092
+              name: plaintext
+            - containerPort: 9093
+              name: controller
+          env:
+            - name: CLUSTER_ID
+              value: 4L6g3nShT-eMCtK--X86sw
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: 1@localhost:9093
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: PLAINTEXT://kafka.baggage-poc.svc.cluster.local:9092
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: PLAINTEXT
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "false"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+              value: "0"
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topic-provisioner
+  namespace: baggage-poc
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: provision-topics
+          image: confluentinc/cp-kafka:7.6.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BOOTSTRAP
+              value: kafka.baggage-poc.svc.cluster.local:9092
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              cub kafka-ready -b "${BOOTSTRAP}" 1 60
+
+              kafka-topics --bootstrap-server "${BOOTSTRAP}" --create --if-not-exists \
+                --topic flight.schedule.v1 --partitions 3 --replication-factor 1 \
+                --config cleanup.policy=compact
+
+              kafka-topics --bootstrap-server "${BOOTSTRAP}" --create --if-not-exists \
+                --topic baggage.assignment.v1 --partitions 6 --replication-factor 1 \
+                --config cleanup.policy=compact
+
+              kafka-topics --bootstrap-server "${BOOTSTRAP}" --create --if-not-exists \
+                --topic baggage.events.v1 --partitions 12 --replication-factor 1 \
+                --config retention.ms=604800000
+
+              kafka-topics --bootstrap-server "${BOOTSTRAP}" --create --if-not-exists \
+                --topic baggage.bag.latest.v1 --partitions 6 --replication-factor 1 \
+                --config cleanup.policy=compact
+
+              kafka-topics --bootstrap-server "${BOOTSTRAP}" --create --if-not-exists \
+                --topic baggage.alerts.v1 --partitions 6 --replication-factor 1 \
+                --config retention.ms=604800000
+
+              kafka-topics --bootstrap-server "${BOOTSTRAP}" --create --if-not-exists \
+                --topic baggage.notifications.v1 --partitions 6 --replication-factor 1 \
+                --config retention.ms=604800000

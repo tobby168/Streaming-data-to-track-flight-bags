@@ -20,13 +20,22 @@ spec:
     spec:
       containers:
         - name: taskmanager
-          image: flink:1.18
+          image: baggage-flink:local
+          imagePullPolicy: IfNotPresent
           args: ["taskmanager"]
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: flink-jobmanager
             - name: TASK_MANAGER_NUMBER_OF_TASK_SLOTS
               value: "2"
+            - name: CLICKHOUSE_JDBC_URL
+              value: jdbc:mariadb://clickhouse:9004/baggage
+            - name: CLICKHOUSE_USER
+              value: admin
+            - name: CLICKHOUSE_PASSWORD
+              value: admin123
+            - name: CLICKHOUSE_JDBC_DRIVER
+              value: org.mariadb.jdbc.Driver
           resources:
             requests:
               memory: "1Gi"

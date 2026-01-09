@@ -14,7 +14,7 @@ def register_kafka_json_source(
     watermark_field: str | None = None,
     watermark_lag_seconds: int = 5,
 ):
-    descriptor = (
+    descriptor_builder = (
         TableDescriptor.for_connector("kafka")
         .schema(_schema_with_watermark(schema, watermark_field, watermark_lag_seconds))
         .option("topic", topic)
@@ -24,33 +24,9 @@ def register_kafka_json_source(
     )
 
     for key, value in json_options.items():
-        descriptor = descriptor.option(key, value)
+        descriptor_builder = descriptor_builder.option(key, value)
 
-    table_env.create_temporary_table(name, descriptor)
-
-
-def register_clickhouse_sink(
-    table_env,
-    name: str,
-    table_name: str,
-    jdbc_url: str,
-    username: str,
-    password: str,
-    schema: Schema,
-):
-    descriptor = (
-        TableDescriptor.for_connector("jdbc")
-        .schema(schema)
-        .option("url", jdbc_url)
-        .option("table-name", table_name)
-        .option("driver", "com.clickhouse.jdbc.ClickHouseDriver")
-    )
-    if username:
-        descriptor = descriptor.option("username", username)
-    if password:
-        descriptor = descriptor.option("password", password)
-
-    table_env.create_temporary_table(name, descriptor)
+    table_env.create_temporary_table(name, descriptor_builder.build())
 
 
 def _schema_with_watermark(schema: Schema, watermark_field, watermark_lag_seconds):

@@ -1,18 +1,19 @@
 """ItineraryStatusJob tracks transfer journeys and emits notifications."""
 
+import os
 import sys
 from pathlib import Path
 
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, DataTypes, Schema
-from pyflink.table import expressions as expr
+from pyflink.table import StreamTableEnvironment
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+DETACHED = os.getenv("FLINK_DETACHED", "0").lower() in ("1", "true", "yes")
 
 from flink_jobs.common import (
     load_configs,
     register_kafka_json_source,
-    register_clickhouse_sink,
     baggage_event_schema,
     json_options,
 )
@@ -22,7 +23,7 @@ def run():
     env = StreamExecutionEnvironment.get_execution_environment()
     table_env = StreamTableEnvironment.create(env)
 
-    kafka_cfg, clickhouse_cfg, topics = load_configs()
+    kafka_cfg, topics = load_configs()
 
     register_kafka_json_source(
         table_env,
@@ -32,28 +33,7 @@ def run():
         schema=baggage_event_schema,
         start_mode=kafka_cfg.start_mode,
         json_options=json_options,
-        watermark_field="event_time",
-    )
-
-    status_schema = (
-        Schema.new_builder()
-        .column("itinerary_id", DataTypes.STRING())
-        .column("journey_state", DataTypes.STRING())
-        .column("last_event_type", DataTypes.STRING())
-        .column("last_airport", DataTypes.STRING())
-        .column("last_event_time", DataTypes.TIMESTAMP_LTZ(3))
-        .column("updated_at", DataTypes.TIMESTAMP_LTZ(3))
-        .build()
-    )
-
-    register_clickhouse_sink(
-        table_env,
-        name="itinerary_status_clickhouse",
-        table_name="itinerary_status",
-        jdbc_url=clickhouse_cfg.jdbc_url,
-        username=clickhouse_cfg.username,
-        password=clickhouse_cfg.password,
-        schema=status_schema,
+        watermark_field="event_time_ts",
     )
 
     events = table_env.from_path("baggage_events")
@@ -61,25 +41,38 @@ def run():
 
     ranked = table_env.sql_query(
         """
-        SELECT *, ROW_NUMBER() OVER (PARTITION BY itinerary_id ORDER BY event_time DESC, ingest_time DESC) AS rn
+        SELECT
+            *,
+            ROW_NUMBER() OVER (
+                PARTITION BY itinerary_id
+                ORDER BY event_time_ts DESC, ingest_time_ts DESC
+            ) AS rn
         FROM events
         """
     )
+    table_env.create_temporary_view("ranked_events", ranked)
 
-    latest = ranked.filter(expr.col("rn") == 1).select(
-        expr.col("itinerary_id"),
-        expr.col("event_type").alias("last_event_type"),
-        expr.col("airport").alias("last_airport"),
-        expr.col("event_time").alias("last_event_time"),
-        expr.col("ingest_time").alias("updated_at"),
-        _journey_state(expr.col("event_type")).alias("journey_state"),
+    latest = table_env.sql_query(
+        """
+        SELECT
+            itinerary_id,
+            CASE
+                WHEN event_type = 'TransferIn' THEN 'AT_RISK_FOR_CONNECTION'
+                WHEN event_type = 'ReassociatedToNextLeg' THEN 'RECOVERING'
+                WHEN event_type = 'LoadedOnAircraft' THEN 'ON_TIME'
+                WHEN event_type = 'Offloaded' THEN 'DELAYED_OR_REROUTED'
+                ELSE 'EXCEPTION'
+            END AS journey_state,
+            event_type AS last_event_type,
+            airport AS last_airport,
+            event_time_ts AS last_event_time,
+            ingest_time_ts AS updated_at
+        FROM ranked_events
+        WHERE rn = 1
+        """
     )
 
     table_env.create_temporary_view("itinerary_status", latest)
-
-    table_env.execute_sql(
-        "INSERT INTO itinerary_status_clickhouse SELECT itinerary_id, journey_state, last_event_type, last_airport, last_event_time, updated_at FROM itinerary_status"
-    )
 
     table_env.execute_sql(
         f"""
@@ -101,20 +94,11 @@ def run():
         """
     )
 
-    table_env.execute_sql(
+    notifications_result = table_env.execute_sql(
         "INSERT INTO notifications_kafka_sink SELECT * FROM itinerary_status WHERE journey_state IN ('AT_RISK_FOR_CONNECTION', 'DELAYED_OR_REROUTED', 'EXCEPTION')"
-    ).wait()
-
-
-def _journey_state(event_type):
-    return (
-        expr.case_()
-        .when(event_type == "TransferIn", "AT_RISK_FOR_CONNECTION")
-        .when(event_type == "ReassociatedToNextLeg", "RECOVERING")
-        .when(event_type == "LoadedOnAircraft", "ON_TIME")
-        .when(event_type == "Offloaded", "DELAYED_OR_REROUTED")
-        .otherwise("EXCEPTION")
     )
+    if not DETACHED:
+        notifications_result.wait()
 
 
 if __name__ == "__main__":

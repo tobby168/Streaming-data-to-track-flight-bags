@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Iterable
 
 try:
@@ -51,6 +52,10 @@ class BaggageKafkaPublisher:
     def __init__(self, client: ProducerClient) -> None:
         self.client = client
 
+    @staticmethod
+    def _fmt(dt: datetime) -> str:
+        return dt.isoformat(timespec="milliseconds")
+
     def publish(
         self,
         flights: Iterable[FlightSchedule],
@@ -63,9 +68,9 @@ class BaggageKafkaPublisher:
                     "flight_id": flight.flight_id,
                     "airport_origin": flight.airport_origin,
                     "airport_dest": flight.airport_dest,
-                    "dep_time": flight.dep_time.isoformat() + "Z",
-                    "arr_time": flight.arr_time.isoformat() + "Z",
-                    "bag_cutoff_time": flight.bag_cutoff_time.isoformat() + "Z",
+                    "dep_time": self._fmt(flight.dep_time),
+                    "arr_time": self._fmt(flight.arr_time),
+                    "bag_cutoff_time": self._fmt(flight.bag_cutoff_time),
                     "expected_bags": flight.expected_bags,
                 }
             )

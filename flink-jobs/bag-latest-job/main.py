@@ -1,23 +1,25 @@
 """BagLatestJob processes baggage events and maintains the latest state per bag."""
 
+import os
 import sys
 from pathlib import Path
 
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, Schema, DataTypes
+from pyflink.table import StreamTableEnvironment
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+DETACHED = os.getenv("FLINK_DETACHED", "0").lower() in ("1", "true", "yes")
 
 from flink_jobs.common import (
     load_configs,
     register_kafka_json_source,
-    register_clickhouse_sink,
     baggage_event_schema,
     json_options,
 )
 
 
-def build_tables(table_env, kafka_cfg, clickhouse_cfg, topics):
+def build_tables(table_env, kafka_cfg, topics):
     register_kafka_json_source(
         table_env,
         name="baggage_events",
@@ -26,48 +28,24 @@ def build_tables(table_env, kafka_cfg, clickhouse_cfg, topics):
         schema=baggage_event_schema,
         start_mode=kafka_cfg.start_mode,
         json_options=json_options,
-        watermark_field="event_time",
+        watermark_field="event_time_ts",
     )
-
-    bag_latest_schema = Schema.new_builder() \
-        .column("bag_id", DataTypes.STRING()) \
-        .column("itinerary_id", DataTypes.STRING()) \
-        .column("flight_id", DataTypes.STRING()) \
-        .column("event_type", DataTypes.STRING()) \
-        .column("airport", DataTypes.STRING()) \
-        .column("event_time", DataTypes.TIMESTAMP_LTZ(3)) \
-        .column("ingest_time", DataTypes.TIMESTAMP_LTZ(3)) \
-        .column("attributes", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())) \
-        .build()
-
-    register_clickhouse_sink(
-        table_env,
-        name="bag_latest_clickhouse",
-        table_name="bag_latest",
-        jdbc_url=clickhouse_cfg.jdbc_url,
-        username=clickhouse_cfg.username,
-        password=clickhouse_cfg.password,
-        schema=bag_latest_schema,
-    )
-
-
-# pylint: disable=too-many-statements
 
 def run():
     env = StreamExecutionEnvironment.get_execution_environment()
     table_env = StreamTableEnvironment.create(env)
 
-    kafka_cfg, clickhouse_cfg, topics = load_configs()
-    build_tables(table_env, kafka_cfg, clickhouse_cfg, topics)
+    kafka_cfg, topics = load_configs()
+    build_tables(table_env, kafka_cfg, topics)
 
     events = table_env.from_path("baggage_events")
     table_env.create_temporary_view("baggage_events_view", events)
 
     latest = table_env.sql_query(
         """
-        SELECT bag_id, itinerary_id, flight_id, event_type, airport, event_time, ingest_time, attributes
+        SELECT bag_id, itinerary_id, flight_id, event_type, airport, event_time_ts AS event_time, ingest_time_ts AS ingest_time, attributes
         FROM (
-            SELECT e.*, ROW_NUMBER() OVER(PARTITION BY bag_id ORDER BY event_time DESC, ingest_time DESC) as rownum
+            SELECT e.*, ROW_NUMBER() OVER(PARTITION BY bag_id ORDER BY event_time_ts DESC, ingest_time_ts DESC) as rownum
             FROM baggage_events_view e
         )
         WHERE rownum = 1
@@ -75,10 +53,6 @@ def run():
     )
 
     table_env.create_temporary_view("bag_latest", latest)
-
-    table_env.execute_sql(
-        "INSERT INTO bag_latest_clickhouse SELECT * FROM bag_latest"
-    )
 
     table_env.execute_sql(
         f"""
@@ -102,9 +76,12 @@ def run():
         """
     )
 
-    table_env.execute_sql(
+    kafka_result = table_env.execute_sql(
         "INSERT INTO bag_latest_kafka_sink SELECT * FROM bag_latest"
-    ).wait()
+    )
+
+    if not DETACHED:
+        kafka_result.wait()
 
 
 if __name__ == "__main__":

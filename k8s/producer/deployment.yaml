@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: producer
-          image: ghcr.io/example/baggage-producer:latest
+          image: baggage-producer:local
+          imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: baggage-producer-config

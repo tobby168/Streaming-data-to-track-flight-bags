@@ -9,12 +9,27 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: submitter
-          image: flink:1.18
+          image: baggage-flink:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_JDBC_URL
+              value: jdbc:mariadb://clickhouse:9004/baggage
+            - name: CLICKHOUSE_USER
+              value: admin
+            - name: CLICKHOUSE_PASSWORD
+              value: admin123
+            - name: CLICKHOUSE_JDBC_DRIVER
+              value: org.mariadb.jdbc.Driver
+            - name: FLINK_DETACHED
+              value: "1"
           command: ["/bin/bash", "-c"]
           args:
             - |
               set -euo pipefail
-              echo "Submitting Flink jobs";
-              flink run -m flink-jobmanager:8081 /opt/flink/jobs/bag-latest-job.jar --kafka.bootstrap.servers=kafka.baggage-poc.svc.cluster.local:9092;
-              flink run -m flink-jobmanager:8081 /opt/flink/jobs/flight-kpi-alert-job.jar --kafka.bootstrap.servers=kafka.baggage-poc.svc.cluster.local:9092;
-              flink run -m flink-jobmanager:8081 /opt/flink/jobs/itinerary-status-job.jar --kafka.bootstrap.servers=kafka.baggage-poc.svc.cluster.local:9092;
+              echo "Submitting PyFlink jobs"
+              JOB_MANAGER="flink-jobmanager:8081"
+              PY_FILES="/opt/flink/jobs/flink_jobs.zip"
+
+              flink run -d -m "${JOB_MANAGER}" -py /opt/flink/jobs/bag-latest-job/main.py --pyFiles "${PY_FILES}"
+              flink run -d -m "${JOB_MANAGER}" -py /opt/flink/jobs/flight-kpi-alert-job/main.py --pyFiles "${PY_FILES}"
+              flink run -d -m "${JOB_MANAGER}" -py /opt/flink/jobs/itinerary-status-job/main.py --pyFiles "${PY_FILES}"
