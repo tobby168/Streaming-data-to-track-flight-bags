@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-config
+  namespace: baggage-poc
+data:
+  mysql-port.xml: |
+    <clickhouse>
+      <mysql_port>9004</mysql_port>
+    </clickhouse>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse
+  namespace: baggage-poc
+  labels:
+    app: clickhouse
+spec:
+  selector:
+    app: clickhouse
+  ports:
+    - name: http
+      port: 8123
+      targetPort: 8123
+    - name: native
+      port: 9000
+      targetPort: 9000
+    - name: mysql
+      port: 9004
+      targetPort: 9004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clickhouse
+  namespace: baggage-poc
+  labels:
+    app: clickhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clickhouse
+  template:
+    metadata:
+      labels:
+        app: clickhouse
+    spec:
+      containers:
+        - name: clickhouse
+          image: clickhouse/clickhouse-server:24.9
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8123
+              name: http
+            - containerPort: 9000
+              name: native
+            - containerPort: 9004
+              name: mysql
+          env:
+            - name: CLICKHOUSE_USER
+              value: admin
+            - name: CLICKHOUSE_PASSWORD
+              value: admin123
+            - name: CLICKHOUSE_DB
+              value: baggage
+            - name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
+              value: "1"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/config.d/mysql-port.xml
+              subPath: mysql-port.xml
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: native
+            initialDelaySeconds: 20
+            periodSeconds: 15
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: clickhouse-config
+          configMap:
+            name: clickhouse-config

@@ -20,7 +20,8 @@ spec:
     spec:
       containers:
         - name: jobmanager
-          image: flink:1.18
+          image: baggage-flink:local
+          imagePullPolicy: IfNotPresent
           args: ["jobmanager"]
           ports:
             - containerPort: 8081
@@ -32,6 +33,14 @@ spec:
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: flink-jobmanager
+            - name: CLICKHOUSE_JDBC_URL
+              value: jdbc:mariadb://clickhouse:9004/baggage
+            - name: CLICKHOUSE_USER
+              value: admin
+            - name: CLICKHOUSE_PASSWORD
+              value: admin123
+            - name: CLICKHOUSE_JDBC_DRIVER
+              value: org.mariadb.jdbc.Driver
           resources:
             requests:
               memory: "512Mi"

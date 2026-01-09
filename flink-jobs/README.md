@@ -27,6 +27,16 @@ Set the following environment variables as needed:
 
 - `KAFKA_BOOTSTRAP` (default `kafka:9092`)
 - `KAFKA_START_MODE` (default `earliest-offset`)
-- `CLICKHOUSE_JDBC_URL` (default `jdbc:clickhouse://clickhouse:9000/default`)
+- `CLICKHOUSE_JDBC_URL` (default `jdbc:mariadb://clickhouse:9004/baggage`, ClickHouse's MySQL-compatible port)
 - `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`
 - Overrides for topic names: `TOPIC_BAGGAGE_EVENTS`, `TOPIC_BAG_LATEST`, `TOPIC_ALERTS`, `TOPIC_NOTIFICATIONS`, `TOPIC_FLIGHT_SCHEDULE`
+
+## Building the Kubernetes image
+
+The Kubernetes manifests expect a Docker image that bundles the PyFlink environment, the Python sources in this folder, and the required connector JARs (Kafka, JDBC, ClickHouse). Use the helper script to build it locally:
+
+```bash
+./scripts/build-flink-image.sh              # builds baggage-flink:local
+```
+
+The resulting `baggage-flink:local` image is referenced by the JobManager, TaskManager, and job-submission pods in `k8s/flink/*.yaml` so Docker Desktop/Kind can reuse the locally built layers without pushing to a registry. Re-run the script whenever the Python jobs or dependencies change.

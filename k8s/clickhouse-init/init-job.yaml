@@ -9,7 +9,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: clickhouse-init
-          image: docker.io/bitnami/clickhouse:23.8.9
+          image: clickhouse/clickhouse-server:24.9
           command: ["/bin/bash", "-c"]
           args:
             - |
