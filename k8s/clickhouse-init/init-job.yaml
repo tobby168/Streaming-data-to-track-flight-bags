@@ -92,3 +92,163 @@ data:
     )
     ENGINE = ReplacingMergeTree(updated_at)
     ORDER BY itinerary_id;
+
+    -- Kafka ingestion tables + materialized views (ingest from Flink Kafka sinks)
+    DROP TABLE IF EXISTS baggage.bag_latest_mv;
+    DROP TABLE IF EXISTS baggage.kafka_bag_latest;
+    DROP TABLE IF EXISTS baggage.flight_kpis_mv;
+    DROP TABLE IF EXISTS baggage.kafka_flight_kpis;
+    DROP TABLE IF EXISTS baggage.alerts_mv;
+    DROP TABLE IF EXISTS baggage.kafka_alerts;
+    DROP TABLE IF EXISTS baggage.itinerary_status_mv;
+    DROP TABLE IF EXISTS baggage.kafka_itinerary_status;
+
+    CREATE TABLE baggage.kafka_bag_latest
+    (
+        bag_id String,
+        itinerary_id String,
+        flight_id String,
+        event_type String,
+        airport String,
+        event_time DateTime64(3),
+        ingest_time DateTime64(3),
+        attributes Map(String, String)
+    )
+    ENGINE = Kafka
+    SETTINGS kafka_broker_list = 'kafka:9092',
+             kafka_topic_list = 'baggage.bag.latest.v1',
+             kafka_group_name = 'ch_bag_latest_v2',
+             kafka_format = 'JSONEachRow',
+             kafka_num_consumers = 1,
+             kafka_handle_error_mode = 'stream',
+             kafka_commit_every_batch = 0,
+             kafka_max_block_size = 5000,
+             kafka_skip_broken_messages = 1,
+             date_time_input_format = 'best_effort';
+
+    CREATE MATERIALIZED VIEW baggage.bag_latest_mv TO baggage.bag_latest AS
+    SELECT
+        bag_id,
+        itinerary_id,
+        '' AS customer_id,
+        flight_id,
+        toUInt8(0) AS leg_index,
+        airport,
+        event_type,
+        toDateTime(event_time) AS event_time,
+        toDateTime(ingest_time) AS ingest_time,
+        attributes,
+        now() AS updated_at
+    FROM baggage.kafka_bag_latest
+    WHERE bag_id != '' AND event_time > toDateTime64(0, 3);
+
+    CREATE TABLE baggage.kafka_flight_kpis
+    (
+        flight_id String,
+        window_start DateTime64(3),
+        window_end DateTime64(3),
+        events Int64,
+        loaded Int64,
+        missing Int64,
+        freshness_sec Float64,
+        severity String
+    )
+    ENGINE = Kafka
+    SETTINGS kafka_broker_list = 'kafka:9092',
+             kafka_topic_list = 'baggage.flight.kpis.v1',
+             kafka_group_name = 'ch_flight_kpis_v2',
+             kafka_format = 'JSONEachRow',
+             kafka_num_consumers = 1,
+             kafka_handle_error_mode = 'stream',
+             kafka_commit_every_batch = 0,
+             kafka_max_block_size = 5000,
+             kafka_skip_broken_messages = 1,
+             date_time_input_format = 'best_effort';
+
+    CREATE MATERIALIZED VIEW baggage.flight_kpis_mv TO baggage.flight_kpis AS
+    SELECT
+        flight_id,
+        splitByString('->', splitByChar('|', flight_id)[3])[1] AS airport_origin,
+        splitByString('->', splitByChar('|', flight_id)[3])[2] AS airport_dest,
+        toDateTime(window_start) AS dep_time,
+        toDateTime(window_end) AS arr_time,
+        if(events > 0, loaded / events, 0) AS loaded_pct,
+        toUInt32(greatest(missing, 0)) AS missing_bags,
+        toUInt32(greatest(freshness_sec, 0)) AS freshness_sec,
+        now() AS updated_at
+    FROM baggage.kafka_flight_kpis
+    WHERE flight_id != '' AND window_start > toDateTime64(0, 3);
+
+    CREATE TABLE baggage.kafka_alerts
+    (
+        flight_id String,
+        window_start DateTime64(3),
+        window_end DateTime64(3),
+        severity String,
+        missing Int64
+    )
+    ENGINE = Kafka
+    SETTINGS kafka_broker_list = 'kafka:9092',
+             kafka_topic_list = 'baggage.alerts.v1',
+             kafka_group_name = 'ch_alerts_v2',
+             kafka_format = 'JSONEachRow',
+             kafka_num_consumers = 1,
+             kafka_handle_error_mode = 'stream',
+             kafka_commit_every_batch = 0,
+             kafka_max_block_size = 5000,
+             kafka_skip_broken_messages = 1,
+             date_time_input_format = 'best_effort';
+
+    CREATE MATERIALIZED VIEW baggage.alerts_mv TO baggage.alerts AS
+    SELECT
+        flight_id,
+        if(severity = 'CRITICAL', 'freshness_lag', 'missing_bags') AS rule_id,
+        toDateTime(window_start) AS window_start,
+        severity,
+        concat(
+            '{\"missing\":', toString(missing),
+            ',\"window_start\":\"', toString(window_start),
+            '\",\"window_end\":\"', toString(window_end),
+            '\"}'
+        ) AS payload,
+        now() AS created_at
+    FROM baggage.kafka_alerts
+    WHERE flight_id != '' AND window_start > toDateTime64(0, 3);
+
+    CREATE TABLE baggage.kafka_itinerary_status
+    (
+        itinerary_id String,
+        journey_state String,
+        last_event_type String,
+        last_airport String,
+        last_event_time DateTime64(3),
+        updated_at DateTime64(3)
+    )
+    ENGINE = Kafka
+    SETTINGS kafka_broker_list = 'kafka:9092',
+             kafka_topic_list = 'baggage.notifications.v1',
+             kafka_group_name = 'ch_itinerary_status_v2',
+             kafka_format = 'JSONEachRow',
+             kafka_num_consumers = 1,
+             kafka_handle_error_mode = 'stream',
+             kafka_commit_every_batch = 0,
+             kafka_max_block_size = 5000,
+             kafka_skip_broken_messages = 1,
+             date_time_input_format = 'best_effort';
+
+    CREATE MATERIALIZED VIEW baggage.itinerary_status_mv TO baggage.itinerary_status AS
+    SELECT
+        itinerary_id,
+        journey_state,
+        last_event_type AS latest_event,
+        toDateTime(last_event_time) AS latest_event_time,
+        last_airport AS connection_airport,
+        CASE
+            WHEN journey_state = 'AT_RISK_FOR_CONNECTION' THEN 'transfer_in'
+            WHEN journey_state = 'DELAYED_OR_REROUTED' THEN 'offloaded'
+            WHEN journey_state = 'EXCEPTION' THEN 'unexpected_event'
+            ELSE ''
+        END AS risk_reason,
+        now() AS updated_at
+    FROM baggage.kafka_itinerary_status
+    WHERE itinerary_id != '' AND last_event_time > toDateTime64(0, 3);

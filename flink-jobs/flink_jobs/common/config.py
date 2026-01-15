@@ -34,6 +34,21 @@ class TopicConfig:
     )
 
 
+@dataclass
+class ClickHouseConfig:
+    jdbc_url: str = os.getenv(
+        "CLICKHOUSE_JDBC_URL", "jdbc:mysql://clickhouse:9004/baggage"
+    )
+    user: str = os.getenv("CLICKHOUSE_USER", "admin")
+    password: str = os.getenv("CLICKHOUSE_PASSWORD", "admin123")
+    driver: str = os.getenv("CLICKHOUSE_JDBC_DRIVER", "com.mysql.cj.jdbc.Driver")
+
+
 def load_configs() -> tuple[KafkaConfig, TopicConfig]:
     """Helper that loads all config dataclasses at once."""
     return KafkaConfig(), TopicConfig()
+
+
+def load_clickhouse_config() -> ClickHouseConfig:
+    """Helper that loads ClickHouse JDBC config."""
+    return ClickHouseConfig()

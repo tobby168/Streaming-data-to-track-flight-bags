@@ -53,6 +53,11 @@ def run():
     events = table_env.from_path("baggage_events")
     table_env.create_temporary_view("events", events)
 
+    events_with_proc_time = table_env.sql_query(
+        "SELECT *, PROCTIME() AS proc_time FROM events"
+    )
+    table_env.create_temporary_view("events_with_proc_time", events_with_proc_time)
+
     windowed = table_env.sql_query(
         """
         SELECT
@@ -63,7 +68,7 @@ def run():
             SUM(CASE WHEN event_type = 'LoadedOnAircraft' THEN 1 ELSE 0 END) AS loaded,
             SUM(CASE WHEN event_type = 'LoadedOnAircraft' THEN 0 ELSE 1 END) AS missing,
             TIMESTAMPDIFF(SECOND, MAX(event_time_ts), CURRENT_TIMESTAMP) AS freshness_sec
-        FROM TABLE(TUMBLE(TABLE events, DESCRIPTOR(event_time_ts), INTERVAL '10' SECOND))
+        FROM TABLE(TUMBLE(TABLE events_with_proc_time, DESCRIPTOR(proc_time), INTERVAL '10' SECOND))
         GROUP BY flight_id, window_start, window_end
         """
     )
@@ -113,12 +118,6 @@ def run():
         """
     )
 
-    kpi_result = table_env.execute_sql(
-        "INSERT INTO flight_kpis_kafka_sink SELECT * FROM flight_kpis"
-    )
-    if not DETACHED:
-        kpi_result.wait()
-
     table_env.execute_sql(
         f"""
         CREATE TABLE alerts_kafka_sink (
@@ -138,11 +137,18 @@ def run():
         """
     )
 
-    alerts_result = table_env.execute_sql(
-        "INSERT INTO alerts_kafka_sink SELECT flight_id, window_start, window_end, severity, missing FROM flight_kpis WHERE severity <> 'OK'"
-    )
+
+    results = [
+        table_env.execute_sql(
+            "INSERT INTO flight_kpis_kafka_sink SELECT * FROM flight_kpis"
+        ),
+        table_env.execute_sql(
+            "INSERT INTO alerts_kafka_sink SELECT flight_id, window_start, window_end, severity, missing FROM flight_kpis WHERE severity <> 'OK'"
+        ),
+    ]
+
     if not DETACHED:
-        alerts_result.wait()
+        results[-1].wait()
 
 
 if __name__ == "__main__":
