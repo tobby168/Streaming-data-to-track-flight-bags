@@ -43,7 +43,7 @@ def run():
 
     latest = table_env.sql_query(
         """
-        SELECT bag_id, itinerary_id, flight_id, event_type, airport, event_time_ts AS event_time, ingest_time_ts AS ingest_time, attributes
+        SELECT bag_id, itinerary_id, customer_id, flight_id, leg_index, airport, event_type, event_time_ts AS event_time, ingest_time_ts AS ingest_time, attributes
         FROM (
             SELECT e.*, ROW_NUMBER() OVER(PARTITION BY bag_id ORDER BY event_time_ts DESC, ingest_time_ts DESC) as rownum
             FROM baggage_events_view e
@@ -76,12 +76,14 @@ def run():
         """
     )
 
-    kafka_result = table_env.execute_sql(
-        "INSERT INTO bag_latest_kafka_sink SELECT * FROM bag_latest"
-    )
+    results = [
+        table_env.execute_sql(
+            "INSERT INTO bag_latest_kafka_sink SELECT bag_id, itinerary_id, flight_id, event_type, airport, event_time, ingest_time, attributes FROM bag_latest"
+        )
+    ]
 
     if not DETACHED:
-        kafka_result.wait()
+        results[-1].wait()
 
 
 if __name__ == "__main__":

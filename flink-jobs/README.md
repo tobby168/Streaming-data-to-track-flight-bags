@@ -27,7 +27,7 @@ Set the following environment variables as needed:
 
 - `KAFKA_BOOTSTRAP` (default `kafka:9092`)
 - `KAFKA_START_MODE` (default `earliest-offset`)
-- `CLICKHOUSE_JDBC_URL` (default `jdbc:mariadb://clickhouse:9004/baggage`, ClickHouse's MySQL-compatible port)
+- `CLICKHOUSE_JDBC_URL` (default `jdbc:mysql://clickhouse:9004/baggage`, ClickHouse's MySQL-compatible port)
 - `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`
 - Overrides for topic names: `TOPIC_BAGGAGE_EVENTS`, `TOPIC_BAG_LATEST`, `TOPIC_ALERTS`, `TOPIC_NOTIFICATIONS`, `TOPIC_FLIGHT_SCHEDULE`
 

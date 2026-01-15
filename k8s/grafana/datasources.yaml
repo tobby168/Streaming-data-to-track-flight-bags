@@ -14,9 +14,12 @@ data:
       - name: ClickHouse
         type: grafana-clickhouse-datasource
         access: proxy
-        url: http://clickhouse:8123
-        database: baggage
-        user: admin
+        isDefault: true
+        jsonData:
+          server: clickhouse
+          port: 8123
+          protocol: http
+          defaultDatabase: baggage
+          username: admin
         secureJsonData:
           password: admin123
-        isDefault: true

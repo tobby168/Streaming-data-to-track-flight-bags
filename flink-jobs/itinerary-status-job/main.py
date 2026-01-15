@@ -94,11 +94,14 @@ def run():
         """
     )
 
-    notifications_result = table_env.execute_sql(
-        "INSERT INTO notifications_kafka_sink SELECT * FROM itinerary_status WHERE journey_state IN ('AT_RISK_FOR_CONNECTION', 'DELAYED_OR_REROUTED', 'EXCEPTION')"
-    )
+    results = [
+        table_env.execute_sql(
+            "INSERT INTO notifications_kafka_sink SELECT * FROM itinerary_status WHERE journey_state IN ('AT_RISK_FOR_CONNECTION', 'DELAYED_OR_REROUTED', 'EXCEPTION')"
+        ),
+    ]
+
     if not DETACHED:
-        notifications_result.wait()
+        results[-1].wait()
 
 
 if __name__ == "__main__":

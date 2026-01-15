@@ -29,13 +29,13 @@ spec:
             - name: TASK_MANAGER_NUMBER_OF_TASK_SLOTS
               value: "2"
             - name: CLICKHOUSE_JDBC_URL
-              value: jdbc:mariadb://clickhouse:9004/baggage
+              value: jdbc:mysql://clickhouse:9004/baggage
             - name: CLICKHOUSE_USER
               value: admin
             - name: CLICKHOUSE_PASSWORD
               value: admin123
             - name: CLICKHOUSE_JDBC_DRIVER
-              value: org.mariadb.jdbc.Driver
+              value: com.mysql.cj.jdbc.Driver
           resources:
             requests:
               memory: "1Gi"

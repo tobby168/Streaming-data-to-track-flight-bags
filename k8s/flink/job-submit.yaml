@@ -13,13 +13,13 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_JDBC_URL
-              value: jdbc:mariadb://clickhouse:9004/baggage
+              value: jdbc:mysql://clickhouse:9004/baggage
             - name: CLICKHOUSE_USER
               value: admin
             - name: CLICKHOUSE_PASSWORD
               value: admin123
             - name: CLICKHOUSE_JDBC_DRIVER
-              value: org.mariadb.jdbc.Driver
+              value: com.mysql.cj.jdbc.Driver
             - name: FLINK_DETACHED
               value: "1"
           command: ["/bin/bash", "-c"]
