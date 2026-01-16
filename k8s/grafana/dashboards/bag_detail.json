@@ -1,0 +1,64 @@
+{
+  "title": "Bag Detail",
+  "templating": {
+    "list": [
+      {
+        "name": "bag_id",
+        "type": "query",
+        "datasource": "ClickHouse",
+        "refresh": 1,
+        "query": "SELECT bag_id FROM baggage.bag_latest ORDER BY bag_id LIMIT 500",
+        "definition": "SELECT bag_id FROM baggage.bag_latest ORDER BY bag_id LIMIT 500",
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "table",
+      "title": "Latest bag state",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT bag_id, itinerary_id, flight_id, airport, event_type, event_time, ingest_time, attributes FROM baggage.bag_latest WHERE bag_id = '$bag_id' LIMIT 1",
+          "rawSql": "SELECT bag_id, itinerary_id, flight_id, airport, event_type, event_time, ingest_time, attributes FROM baggage.bag_latest WHERE bag_id = '$bag_id' LIMIT 1"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+    },
+    {
+      "type": "table",
+      "title": "Itinerary status",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "SELECT itinerary_id, journey_state, latest_event, latest_event_time, connection_airport, risk_reason FROM baggage.itinerary_status WHERE itinerary_id IN (SELECT itinerary_id FROM baggage.bag_latest WHERE bag_id = '$bag_id')",
+          "rawSql": "SELECT itinerary_id, journey_state, latest_event, latest_event_time, connection_airport, risk_reason FROM baggage.itinerary_status WHERE itinerary_id IN (SELECT itinerary_id FROM baggage.bag_latest WHERE bag_id = '$bag_id')"
+        }
+      ],
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+    },
+        {
+          "type": "table",
+          "title": "Transit history",
+          "datasource": "ClickHouse",
+          "targets": [
+            {
+              "refId": "C",
+              "rawQuery": true,
+              "query": "SELECT formatDateTime(event_time,'%Y-%m-%d %H:%M:%S') AS time, event_type AS stage, airport, flight_id, leg_index AS leg, reader_type, round(confidence,3) AS confidence, attributes['container_id'] AS container, attributes['belt'] AS belt, attributes['carousel'] AS carousel, attributes['terminal'] AS terminal FROM baggage.bag_events WHERE bag_id = '$bag_id' ORDER BY event_time ASC LIMIT 200",
+              "rawSql": "SELECT formatDateTime(event_time,'%Y-%m-%d %H:%M:%S') AS time, event_type AS stage, airport, flight_id, leg_index AS leg, reader_type, round(confidence,3) AS confidence, attributes['container_id'] AS container, attributes['belt'] AS belt, attributes['carousel'] AS carousel, attributes['terminal'] AS terminal FROM baggage.bag_events WHERE bag_id = '$bag_id' ORDER BY event_time ASC LIMIT 200"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 8, "w": 24, "h": 12}
+        }
+      ],
+  "schemaVersion": 38,
+  "version": 1
+}
