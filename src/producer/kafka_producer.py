@@ -61,7 +61,8 @@ class BaggageKafkaPublisher:
         flights: Iterable[FlightSchedule],
         assignments: Iterable[BagAssignment],
         events: Iterable[BaggageEvent],
-    ) -> None:
+    ) -> tuple[int, int, int]:
+        flight_count = 0
         for flight in flights:
             payload = json.dumps(
                 {
@@ -75,7 +76,9 @@ class BaggageKafkaPublisher:
                 }
             )
             self.client.send("flight.schedule.v1", key=flight.flight_id, value=payload)
+            flight_count += 1
 
+        assignment_count = 0
         for assignment in assignments:
             payload = json.dumps(
                 {
@@ -87,8 +90,12 @@ class BaggageKafkaPublisher:
                 }
             )
             self.client.send("baggage.assignment.v1", key=assignment.bag_id, value=payload)
+            assignment_count += 1
 
+        event_count = 0
         for event in events:
             self.client.send("baggage.events.v1", key=event.bag_id, value=json.dumps(event.to_json_payload()))
+            event_count += 1
 
         self.client.flush()
+        return flight_count, assignment_count, event_count

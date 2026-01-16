@@ -38,14 +38,15 @@ def main() -> None:
         if args.bootstrap_servers:
             client = KafkaProducerClient(args.bootstrap_servers)
             publisher = BaggageKafkaPublisher(client)
-            publisher.publish(flights, assignments, events)
+            flight_count, assignment_count, event_count = publisher.publish(flights, assignments, events)
             print(
-                f"Published {len(flights)} flights, {len(assignments)} assignments, {len(events)} events to Kafka at {args.bootstrap_servers}"
+                f"Published {flight_count} flights, {assignment_count} assignments, {event_count} events to Kafka at {args.bootstrap_servers}"
             )
         else:
-            print(json.dumps({"flights": len(flights), "assignments": len(assignments), "events": len(events)}))
+            events_list = list(events)
+            print(json.dumps({"flights": len(flights), "assignments": len(assignments), "events": len(events_list)}))
             if args.output:
-                args.output.write_text("\n".join(json.dumps(e.to_json_payload()) for e in events))
+                args.output.write_text("\n".join(json.dumps(e.to_json_payload()) for e in events_list))
                 print(f"Wrote events to {args.output}")
 
         if args.loop_seconds <= 0:

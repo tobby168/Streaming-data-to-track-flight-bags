@@ -68,6 +68,26 @@ data:
     ENGINE = ReplacingMergeTree(updated_at)
     ORDER BY bag_id;
 
+    CREATE TABLE IF NOT EXISTS baggage.bag_events
+    (
+        bag_id String,
+        itinerary_id String,
+        customer_id String,
+        flight_id String,
+        leg_index UInt8,
+        airport String,
+        event_type String,
+        event_time DateTime,
+        ingest_time DateTime,
+        scan_point_id String,
+        reader_type String,
+        confidence Float64,
+        attributes Map(String, String),
+        updated_at DateTime DEFAULT now()
+    )
+    ENGINE = MergeTree
+    ORDER BY (bag_id, event_time);
+
     CREATE TABLE IF NOT EXISTS baggage.alerts
     (
         flight_id String,
@@ -94,6 +114,8 @@ data:
     ORDER BY itinerary_id;
 
     -- Kafka ingestion tables + materialized views (ingest from Flink Kafka sinks)
+    DROP TABLE IF EXISTS baggage.bag_events_mv;
+    DROP TABLE IF EXISTS baggage.kafka_bag_events;
     DROP TABLE IF EXISTS baggage.bag_latest_mv;
     DROP TABLE IF EXISTS baggage.kafka_bag_latest;
     DROP TABLE IF EXISTS baggage.flight_kpis_mv;
@@ -125,6 +147,54 @@ data:
              kafka_max_block_size = 5000,
              kafka_skip_broken_messages = 1,
              date_time_input_format = 'best_effort';
+
+    CREATE TABLE baggage.kafka_bag_events
+    (
+        event_id String,
+        bag_id String,
+        itinerary_id String,
+        customer_id String,
+        flight_id String,
+        leg_index Int32,
+        airport String,
+        event_type String,
+        event_time DateTime64(3),
+        ingest_time DateTime64(3),
+        scan_point_id String,
+        reader_type String,
+        confidence Float64,
+        attributes Map(String, String)
+    )
+    ENGINE = Kafka
+    SETTINGS kafka_broker_list = 'kafka:9092',
+             kafka_topic_list = 'baggage.events.v1',
+             kafka_group_name = 'ch_bag_events_v1',
+             kafka_format = 'JSONEachRow',
+             kafka_num_consumers = 1,
+             kafka_handle_error_mode = 'stream',
+             kafka_commit_every_batch = 0,
+             kafka_max_block_size = 5000,
+             kafka_skip_broken_messages = 1,
+             date_time_input_format = 'best_effort';
+
+    CREATE MATERIALIZED VIEW baggage.bag_events_mv TO baggage.bag_events AS
+    SELECT
+        bag_id,
+        itinerary_id,
+        customer_id,
+        flight_id,
+        toUInt8(leg_index) AS leg_index,
+        airport,
+        event_type,
+        toDateTime(event_time) AS event_time,
+        toDateTime(ingest_time) AS ingest_time,
+        scan_point_id,
+        reader_type,
+        confidence,
+        attributes,
+        now() AS updated_at
+    FROM baggage.kafka_bag_events
+    WHERE bag_id != '' AND event_time > toDateTime64(0, 3);
 
     CREATE MATERIALIZED VIEW baggage.bag_latest_mv TO baggage.bag_latest AS
     SELECT

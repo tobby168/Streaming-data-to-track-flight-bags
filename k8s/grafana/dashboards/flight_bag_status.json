@@ -1,0 +1,86 @@
+{
+  "title": "Flight Bag Status",
+  "refresh": "5s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "flight_id",
+        "type": "query",
+        "datasource": "ClickHouse",
+        "refresh": 1,
+        "query": "SELECT DISTINCT flight_id FROM baggage.bag_latest ORDER BY flight_id",
+        "definition": "SELECT DISTINCT flight_id FROM baggage.bag_latest ORDER BY flight_id",
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "bargauge",
+      "title": "Stage mix",
+      "datasource": "ClickHouse",
+      "options": {
+        "displayMode": "gradient"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY stage",
+          "rawSql": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY stage"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6}
+    },
+    {
+      "type": "table",
+      "title": "Stage totals",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY bags DESC",
+          "rawSql": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY bags DESC"
+        }
+      ],
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6}
+    },
+    {
+      "type": "table",
+      "title": "Latest bags (all stages)",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "C",
+          "rawQuery": true,
+          "query": "SELECT bag_id, airport, event_type, event_time FROM baggage.bag_latest WHERE flight_id = '$flight_id' ORDER BY event_time DESC LIMIT 300",
+          "rawSql": "SELECT bag_id, airport, event_type, event_time FROM baggage.bag_latest WHERE flight_id = '$flight_id' ORDER BY event_time DESC LIMIT 300"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 6, "w": 24, "h": 10}
+    },
+    {
+      "type": "timeseries",
+      "title": "Events per minute (bag_events)",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "D",
+          "rawQuery": true,
+          "query": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE flight_id = '$flight_id' AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts",
+          "rawSql": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE flight_id = '$flight_id' AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8}
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 2
+}

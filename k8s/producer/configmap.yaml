@@ -8,7 +8,7 @@ metadata:
     component: config
 
 data:
-  PRODUCER_AIRPORT: "LHR"
+  PRODUCER_AIRPORT: "TPE"
   PRODUCER_DAY_OFFSET: "0"
   KAFKA_BOOTSTRAP_SERVERS: "kafka.baggage-poc.svc.cluster.local:9092"
   PRODUCER_LOOP_SECONDS: "60"
