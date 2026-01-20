@@ -161,7 +161,7 @@
       "type": "timeseries",
       "title": "Events per minute (bag_events)",
       "datasource": "ClickHouse",
-      "timeFrom": "24h",
+      "timeFrom": "7d",
       "targets": [
         {
           "refId": "E",
