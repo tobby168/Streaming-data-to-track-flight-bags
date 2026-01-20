@@ -1,0 +1,120 @@
+{
+  "title": "Fleet Flight Bag Coverage",
+  "refresh": "10s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active flights (7d)",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "F1",
+          "rawQuery": true,
+          "query": "SELECT countDistinct(flight_id) AS value FROM ( SELECT flight_id FROM baggage.bag_latest GROUP BY flight_id HAVING max(event_time) >= now() - INTERVAL 7 DAY )",
+          "rawSql": "SELECT countDistinct(flight_id) AS value FROM ( SELECT flight_id FROM baggage.bag_latest GROUP BY flight_id HAVING max(event_time) >= now() - INTERVAL 7 DAY )"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "stat",
+      "title": "<90% bags on plane",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "F2",
+          "rawQuery": true,
+          "query": "WITH stats AS ( SELECT flight_id, count() AS bags_total, countIf(event_type='LoadedOnAircraft') AS bags_on_plane, countIf(event_type='CarouselArrived') AS bags_on_tray, max(event_time) AS last_event_time FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT countIf(bags_on_tray = 0 AND bags_on_plane > 0 AND bags_on_plane / nullIf(bags_total,0) < 0.9) AS value FROM stats",
+          "rawSql": "WITH stats AS ( SELECT flight_id, count() AS bags_total, countIf(event_type='LoadedOnAircraft') AS bags_on_plane, countIf(event_type='CarouselArrived') AS bags_on_tray, max(event_time) AS last_event_time FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT countIf(bags_on_tray = 0 AND bags_on_plane > 0 AND bags_on_plane / nullIf(bags_total,0) < 0.9) AS value FROM stats"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "stat",
+      "title": "<90% bags on carousel",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "F3",
+          "rawQuery": true,
+          "query": "WITH stats AS ( SELECT flight_id, count() AS bags_total, countIf(event_type='LoadedOnAircraft') AS bags_on_plane, countIf(event_type='CarouselArrived') AS bags_on_tray, max(event_time) AS last_event_time FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT countIf(bags_on_tray > 0 AND bags_on_tray / nullIf(bags_total,0) < 0.9) AS value FROM stats",
+          "rawSql": "WITH stats AS ( SELECT flight_id, count() AS bags_total, countIf(event_type='LoadedOnAircraft') AS bags_on_plane, countIf(event_type='CarouselArrived') AS bags_on_tray, max(event_time) AS last_event_time FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT countIf(bags_on_tray > 0 AND bags_on_tray / nullIf(bags_total,0) < 0.9) AS value FROM stats"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "table",
+      "title": "Pre-Departure (bags on plane)",
+      "description": "Flights with no bags at carousel and not all bags loaded",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "WITH stats AS ( SELECT flight_id, max(event_time) AS last_event_time, count() AS bags_total, countIf(event_type = 'LoadedOnAircraft') AS bags_on_plane, countIf(event_type = 'CarouselArrived') AS bags_on_tray FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT flight_id, bags_total, bags_on_plane, round(100 * bags_on_plane / nullIf(bags_total, 0), 1) AS pct_on_plane, bags_on_tray FROM stats WHERE bags_on_tray = 0 AND bags_on_plane < bags_total ORDER BY pct_on_plane ASC NULLS FIRST, flight_id LIMIT 100",
+          "rawSql": "WITH stats AS ( SELECT flight_id, max(event_time) AS last_event_time, count() AS bags_total, countIf(event_type = 'LoadedOnAircraft') AS bags_on_plane, countIf(event_type = 'CarouselArrived') AS bags_on_tray FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT flight_id, bags_total, bags_on_plane, round(100 * bags_on_plane / nullIf(bags_total, 0), 1) AS pct_on_plane, bags_on_tray FROM stats WHERE bags_on_tray = 0 AND bags_on_plane < bags_total ORDER BY pct_on_plane ASC NULLS FIRST, flight_id LIMIT 100"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 }
+    },
+    {
+      "type": "table",
+      "title": "In-Flight (bags on plane)",
+      "description": "Flights with bags on plane but none at carousel",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "WITH stats AS ( SELECT flight_id, max(event_time) AS last_event_time, count() AS bags_total, countIf(event_type = 'LoadedOnAircraft') AS bags_on_plane, countIf(event_type = 'CarouselArrived') AS bags_on_tray FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT flight_id, bags_total, bags_on_plane, round(100 * bags_on_plane / nullIf(bags_total, 0), 1) AS pct_on_plane FROM stats WHERE bags_on_tray = 0 AND bags_on_plane > 0 ORDER BY pct_on_plane ASC NULLS FIRST, flight_id LIMIT 100",
+          "rawSql": "WITH stats AS ( SELECT flight_id, max(event_time) AS last_event_time, count() AS bags_total, countIf(event_type = 'LoadedOnAircraft') AS bags_on_plane, countIf(event_type = 'CarouselArrived') AS bags_on_tray FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT flight_id, bags_total, bags_on_plane, round(100 * bags_on_plane / nullIf(bags_total, 0), 1) AS pct_on_plane FROM stats WHERE bags_on_tray = 0 AND bags_on_plane > 0 ORDER BY pct_on_plane ASC NULLS FIRST, flight_id LIMIT 100"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 }
+    },
+    {
+      "type": "table",
+      "title": "Arrived (bags at carousel)",
+      "description": "Flights with at least one bag at carousel",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "C",
+          "rawQuery": true,
+          "query": "WITH stats AS ( SELECT flight_id, max(event_time) AS last_event_time, count() AS bags_total, countIf(event_type = 'LoadedOnAircraft') AS bags_on_plane, countIf(event_type = 'CarouselArrived') AS bags_on_tray FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT flight_id, bags_total, bags_on_tray, round(100 * bags_on_tray / nullIf(bags_total, 0), 1) AS pct_on_tray, bags_on_plane FROM stats WHERE bags_on_tray > 0 ORDER BY pct_on_tray ASC NULLS FIRST, flight_id LIMIT 100",
+          "rawSql": "WITH stats AS ( SELECT flight_id, max(event_time) AS last_event_time, count() AS bags_total, countIf(event_type = 'LoadedOnAircraft') AS bags_on_plane, countIf(event_type = 'CarouselArrived') AS bags_on_tray FROM baggage.bag_latest GROUP BY flight_id HAVING last_event_time >= now() - INTERVAL 7 DAY ) SELECT flight_id, bags_total, bags_on_tray, round(100 * bags_on_tray / nullIf(bags_total, 0), 1) AS pct_on_tray, bags_on_plane FROM stats WHERE bags_on_tray > 0 ORDER BY pct_on_tray ASC NULLS FIRST, flight_id LIMIT 100"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 8 }
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 2
+}

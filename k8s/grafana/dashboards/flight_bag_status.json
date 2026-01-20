@@ -22,6 +22,69 @@
   },
   "panels": [
     {
+      "type": "stat",
+      "title": "On plane %",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "S1",
+          "rawQuery": true,
+          "query": "SELECT round(100 * countIf(event_type = 'LoadedOnAircraft') / nullIf(count(), 0), 1) AS value FROM baggage.bag_latest WHERE flight_id = '$flight_id'",
+          "rawSql": "SELECT round(100 * countIf(event_type = 'LoadedOnAircraft') / nullIf(count(), 0), 1) AS value FROM baggage.bag_latest WHERE flight_id = '$flight_id'"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "stat",
+      "title": "At carousel %",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "S2",
+          "rawQuery": true,
+          "query": "SELECT round(100 * countIf(event_type = 'CarouselArrived') / nullIf(count(), 0), 1) AS value FROM baggage.bag_latest WHERE flight_id = '$flight_id'",
+          "rawSql": "SELECT round(100 * countIf(event_type = 'CarouselArrived') / nullIf(count(), 0), 1) AS value FROM baggage.bag_latest WHERE flight_id = '$flight_id'"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "stat",
+      "title": "Total bags",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "S3",
+          "rawQuery": true,
+          "query": "SELECT count() AS value FROM baggage.bag_latest WHERE flight_id = '$flight_id'",
+          "rawSql": "SELECT count() AS value FROM baggage.bag_latest WHERE flight_id = '$flight_id'"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 4}
+    },
+    {
       "type": "bargauge",
       "title": "Stage mix",
       "datasource": "ClickHouse",
@@ -32,11 +95,11 @@
         {
           "refId": "A",
           "rawQuery": true,
-          "query": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY stage",
-          "rawSql": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY stage"
+          "query": "WITH stage_data AS ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) SELECT countIf(stage = 'checked_in') AS checked_in, countIf(stage = 'in_transit') AS in_transit, countIf(stage = 'on_plane') AS on_plane, countIf(stage = 'arrived') AS arrived, countIf(stage = 'other') AS other FROM stage_data",
+          "rawSql": "WITH stage_data AS ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) SELECT countIf(stage = 'checked_in') AS checked_in, countIf(stage = 'in_transit') AS in_transit, countIf(stage = 'on_plane') AS on_plane, countIf(stage = 'arrived') AS arrived, countIf(stage = 'other') AS other FROM stage_data"
         }
       ],
-      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6}
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 6}
     },
     {
       "type": "table",
@@ -50,7 +113,7 @@
           "rawSql": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE flight_id = '$flight_id' ) GROUP BY stage ORDER BY bags DESC"
         }
       ],
-      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6}
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 6}
     },
     {
       "type": "table",
@@ -64,7 +127,7 @@
           "rawSql": "SELECT bag_id, airport, event_type, event_time FROM baggage.bag_latest WHERE flight_id = '$flight_id' ORDER BY event_time DESC LIMIT 300"
         }
       ],
-      "gridPos": {"x": 0, "y": 6, "w": 24, "h": 10}
+      "gridPos": {"x": 0, "y": 10, "w": 24, "h": 10}
     },
     {
       "type": "timeseries",
@@ -78,9 +141,9 @@
           "rawSql": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE flight_id = '$flight_id' AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts"
         }
       ],
-      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8}
+      "gridPos": {"x": 0, "y": 20, "w": 24, "h": 8}
     }
   ],
   "schemaVersion": 38,
-  "version": 2
+  "version": 5
 }

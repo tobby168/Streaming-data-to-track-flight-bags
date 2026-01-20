@@ -129,7 +129,9 @@ data:
     (
         bag_id String,
         itinerary_id String,
+        customer_id String,
         flight_id String,
+        leg_index UInt8,
         event_type String,
         airport String,
         event_time DateTime64(3),
@@ -200,9 +202,9 @@ data:
     SELECT
         bag_id,
         itinerary_id,
-        '' AS customer_id,
+        customer_id,
         flight_id,
-        toUInt8(0) AS leg_index,
+        leg_index,
         airport,
         event_type,
         toDateTime(event_time) AS event_time,
