@@ -59,7 +59,9 @@ def run():
         CREATE TABLE bag_latest_kafka_sink (
             bag_id STRING,
             itinerary_id STRING,
+            customer_id STRING,
             flight_id STRING,
+            leg_index INT,
             event_type STRING,
             airport STRING,
             event_time TIMESTAMP_LTZ(3),
@@ -78,7 +80,7 @@ def run():
 
     results = [
         table_env.execute_sql(
-            "INSERT INTO bag_latest_kafka_sink SELECT bag_id, itinerary_id, flight_id, event_type, airport, event_time, ingest_time, attributes FROM bag_latest"
+            "INSERT INTO bag_latest_kafka_sink SELECT bag_id, itinerary_id, customer_id, flight_id, leg_index, event_type, airport, event_time, ingest_time, attributes FROM bag_latest"
         )
     ]
 

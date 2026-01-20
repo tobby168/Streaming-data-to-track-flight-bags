@@ -1,0 +1,177 @@
+{
+  "title": "Passenger Bag Status",
+  "refresh": "5s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "passenger_id",
+        "label": "Passenger",
+        "type": "query",
+        "datasource": "ClickHouse",
+        "refresh": 1,
+        "query": "SELECT DISTINCT customer_id FROM baggage.bag_latest WHERE customer_id != '' ORDER BY customer_id LIMIT 500",
+        "definition": "SELECT DISTINCT customer_id FROM baggage.bag_latest WHERE customer_id != '' ORDER BY customer_id LIMIT 500",
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      },
+      {
+        "name": "flight_id",
+        "label": "Flight (optional)",
+        "type": "query",
+        "datasource": "ClickHouse",
+        "refresh": 2,
+        "query": "SELECT DISTINCT flight_id FROM baggage.bag_latest WHERE customer_id = '$passenger_id' ORDER BY flight_id",
+        "definition": "SELECT DISTINCT flight_id FROM baggage.bag_latest WHERE customer_id = '$passenger_id' ORDER BY flight_id",
+        "includeAll": true,
+        "allValue": "__all",
+        "multi": false,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total bags",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "P1",
+          "rawQuery": true,
+          "query": "SELECT count() AS value FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')",
+          "rawSql": "SELECT count() AS value FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "stat",
+      "title": "On plane %",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "P2",
+          "rawQuery": true,
+          "query": "SELECT round(100 * countIf(event_type = 'LoadedOnAircraft') / nullIf(count(),0), 1) AS value FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')",
+          "rawSql": "SELECT round(100 * countIf(event_type = 'LoadedOnAircraft') / nullIf(count(),0), 1) AS value FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "stat",
+      "title": "At carousel %",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "P3",
+          "rawQuery": true,
+          "query": "SELECT round(100 * countIf(event_type = 'CarouselArrived') / nullIf(count(),0), 1) AS value FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')",
+          "rawSql": "SELECT round(100 * countIf(event_type = 'CarouselArrived') / nullIf(count(),0), 1) AS value FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 4}
+    },
+    {
+      "type": "bargauge",
+      "title": "Stage mix",
+      "datasource": "ClickHouse",
+      "options": {
+        "displayMode": "gradient"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "WITH stage_data AS ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') ) SELECT countIf(stage = 'checked_in') AS checked_in, countIf(stage = 'in_transit') AS in_transit, countIf(stage = 'on_plane') AS on_plane, countIf(stage = 'arrived') AS arrived, countIf(stage = 'other') AS other FROM stage_data",
+          "rawSql": "WITH stage_data AS ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') ) SELECT countIf(stage = 'checked_in') AS checked_in, countIf(stage = 'in_transit') AS in_transit, countIf(stage = 'on_plane') AS on_plane, countIf(stage = 'arrived') AS arrived, countIf(stage = 'other') AS other FROM stage_data"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 6}
+    },
+    {
+      "type": "table",
+      "title": "Stage totals",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') ) GROUP BY stage ORDER BY bags DESC",
+          "rawSql": "SELECT stage, count() AS bags FROM ( SELECT CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') ) GROUP BY stage ORDER BY bags DESC"
+        }
+      ],
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 6}
+    },
+    {
+      "type": "table",
+      "title": "Bags (latest per bag)",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "C",
+          "rawQuery": true,
+          "query": "SELECT bag_id, flight_id, stage, airport, event_type, event_time FROM ( SELECT bag_id, flight_id, airport, event_type, event_time, CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') ) ORDER BY event_time DESC LIMIT 300",
+          "rawSql": "SELECT bag_id, flight_id, stage, airport, event_type, event_time FROM ( SELECT bag_id, flight_id, airport, event_type, event_time, CASE WHEN event_type = 'CheckedIn' THEN 'checked_in' WHEN event_type IN ('Inducted','ScreenedCleared','MakeupArrived') THEN 'in_transit' WHEN event_type = 'LoadedOnAircraft' THEN 'on_plane' WHEN event_type IN ('Offloaded','CarouselArrived') THEN 'arrived' ELSE 'other' END AS stage FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') ) ORDER BY event_time DESC LIMIT 300"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 10, "w": 24, "h": 10}
+    },
+    {
+      "type": "table",
+      "title": "Itinerary status",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "D",
+          "rawQuery": true,
+          "query": "SELECT itinerary_id, journey_state, latest_event, latest_event_time, connection_airport, risk_reason FROM baggage.itinerary_status WHERE itinerary_id IN (SELECT DISTINCT itinerary_id FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')) ORDER BY latest_event_time DESC LIMIT 50",
+          "rawSql": "SELECT itinerary_id, journey_state, latest_event, latest_event_time, connection_airport, risk_reason FROM baggage.itinerary_status WHERE itinerary_id IN (SELECT DISTINCT itinerary_id FROM baggage.bag_latest WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id')) ORDER BY latest_event_time DESC LIMIT 50"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 20, "w": 24, "h": 6}
+    },
+    {
+      "type": "timeseries",
+      "title": "Events per minute (bag_events)",
+      "datasource": "ClickHouse",
+      "targets": [
+        {
+          "refId": "E",
+          "rawQuery": true,
+          "query": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts",
+          "rawSql": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts"
+        }
+      ],
+      "gridPos": {"x": 0, "y": 26, "w": 24, "h": 8}
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 2
+}
