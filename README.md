@@ -139,4 +139,18 @@ kubectl -n baggage-poc apply -f k8s/flink/job-submit.yaml   # resubmit jobs
 - Docker Desktop/K8s pods healthy
 - Grafana dashboards (Flight Bag Status, Passenger Bag Status, Fleet Coverage)
 
+## Screenshots (drop your PNGs here)
+Place screenshots in `docs/screenshots/` and Git will pick them up. Suggested file names:
+- `docs/screenshots/kafka-ui-topic.png` – topic overview (baggage.events.v1)
+- `docs/screenshots/kafka-ui-message.png` – single message with customer_id shown
+- `docs/screenshots/grafana-fleet.png` – Fleet Flight Bag Coverage
+- `docs/screenshots/grafana-passenger.png` – Passenger Bag Status
+- `docs/screenshots/grafana-bag-detail.png` – Bag Detail
+- `docs/screenshots/grafana-flight.png` – Flight Bag Status
+
+Reference them with markdown like:
+```markdown
+![Kafka UI topic](docs/screenshots/kafka-ui-topic.png)
+```
+
 Enjoy hacking on streaming data! Contributions and PRs welcome.
