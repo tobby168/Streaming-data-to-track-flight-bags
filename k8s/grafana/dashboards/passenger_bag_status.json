@@ -166,8 +166,8 @@
         {
           "refId": "E",
           "rawQuery": true,
-          "query": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts",
-          "rawSql": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') AND event_time >= $__timeFrom() AND event_time <= $__timeTo() GROUP BY ts ORDER BY ts"
+          "query": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') AND $__timeFilter(event_time) GROUP BY ts ORDER BY ts",
+          "rawSql": "SELECT toStartOfInterval(event_time, INTERVAL 1 minute) AS ts, count() AS events FROM baggage.bag_events WHERE customer_id = '$passenger_id' AND ('$flight_id' = '__all' OR flight_id = '$flight_id') AND $__timeFilter(event_time) GROUP BY ts ORDER BY ts"
         }
       ],
       "gridPos": {"x": 0, "y": 26, "w": 24, "h": 8}
