@@ -15,6 +15,16 @@ Producer → baggage.events.v1
                            Grafana UI
 ```
 
+## Quick look
+- Kafka UI: topic backlog and live message payloads  
+  ![Kafka UI topic](docs/screenshots/kafka-ui-topic.png) ![Kafka UI message](docs/screenshots/kafka-ui-message.png)
+- Grafana dashboards:
+  ![Fleet Coverage](docs/screenshots/grafana-fleet.png)
+  ![Passenger View](docs/screenshots/grafana-passenger.png)
+  ![Flight Status](docs/screenshots/grafana-flight.png)
+  ![Flight KPIs](docs/screenshots/grafana-flight-bag-status.png)
+  ![Bag Detail](docs/screenshots/grafana-bag-detail.png)
+
 ## What’s inside
 - **Flink jobs** (`flink-jobs/`): bag_latest, flight_kpi_alerts, itinerary_status.
 - **Data gen** (`src/producer`): mock baggage events and flight schedules.
@@ -133,24 +143,5 @@ kubectl -n baggage-poc apply -f k8s/flink/job-submit.yaml   # resubmit jobs
 - **bag_events timeseries empty**: widen Grafana panel time window (set `timeFrom` or use a more recent flight_id).
 - **ClickHouse schema drift**: rerun `k8s/clickhouse-init/init-job.yaml` or recreate Kafka MV tables (see file).
 - **Images not found**: load `baggage-flink:local` and `baggage-producer:local` into your cluster runtime (kind/minikube).
-
-## Nice-to-have screenshots
-- Kafka UI topic messages (baggage.events.v1)
-- Docker Desktop/K8s pods healthy
-- Grafana dashboards (Flight Bag Status, Passenger Bag Status, Fleet Coverage)
-
-## Screenshots (drop your PNGs here)
-Place screenshots in `docs/screenshots/` and Git will pick them up. Suggested file names:
-- `docs/screenshots/kafka-ui-topic.png` – topic overview (baggage.events.v1)
-- `docs/screenshots/kafka-ui-message.png` – single message with customer_id shown
-- `docs/screenshots/grafana-fleet.png` – Fleet Flight Bag Coverage
-- `docs/screenshots/grafana-passenger.png` – Passenger Bag Status
-- `docs/screenshots/grafana-bag-detail.png` – Bag Detail
-- `docs/screenshots/grafana-flight.png` – Flight Bag Status
-
-Reference them with markdown like:
-```markdown
-![Kafka UI topic](docs/screenshots/kafka-ui-topic.png)
-```
 
 Enjoy hacking on streaming data! Contributions and PRs welcome.
