@@ -36,6 +36,12 @@ Producer → baggage.events.v1
   - Bag Detail
   - Itinerary Exceptions
 
+## One-line quickstart
+```bash
+./scripts/quickstart.sh
+```
+Runs: build images → (optionally) kind image load → Kafka + UI → ClickHouse + schema → Flink + jobs → producer → Grafana datasource/alerts/dashboards. Default namespace `baggage-poc`.
+
 ## Prerequisites
 - Docker (or another OCI builder)
 - kubectl + a local K8s (kind/minikube/Docker Desktop)
